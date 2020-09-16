@@ -17,3 +17,12 @@ func NewBadRequestError(message string) *RestErr {
 		Error:   "bad_request",
 	}
 }
+
+//NewResourceNotFoundError returns a 404
+func NewResourceNotFoundError(message string) *RestErr {
+	return &RestErr{
+		Code:    http.StatusNotFound,
+		Message: message,
+		Error:   "resource_not_found",
+	}
+}
