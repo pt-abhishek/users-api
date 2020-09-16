@@ -1,35 +1,24 @@
 package users
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/pt-abhishek/users-api/utils"
 )
 
-var (
-	usersDB = make(map[int64]*User)
-)
-
-//Get finds by id
-func (user *User) Get() *utils.RestErr {
-	result := usersDB[user.ID]
-	if result == nil {
-		return utils.NewResourceNotFoundError(fmt.Sprintf("user not found with ID: %d", user.ID))
-	}
-	user.ID = result.ID
-	user.FirstName = result.FirstName
-	user.LastName = result.LastName
-	user.Email = result.Email
-	user.DateCreated = result.DateCreated
-	return nil
+//User DTO
+type User struct {
+	ID          int64  `json:"id"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	Email       string `json:"email"`
+	DateCreated string `json:"date_created"`
 }
 
-//Save saves a user
-func (user *User) Save() (*User, *utils.RestErr) {
-	existingUser := usersDB[user.ID]
-	if existingUser != nil {
-		return nil, utils.NewBadRequestError(fmt.Sprintf("User with ID: %d already exists", user.ID))
+//Validate validates the data in DAO
+func (user *User) Validate() *utils.RestErr {
+	if strings.TrimSpace(strings.ToLower(user.Email)) == "" {
+		return utils.NewBadRequestError("Invalid Email Address")
 	}
-	usersDB[user.ID] = user
-	return user, nil
+	return nil
 }

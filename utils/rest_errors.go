@@ -26,3 +26,12 @@ func NewResourceNotFoundError(message string) *RestErr {
 		Error:   "resource_not_found",
 	}
 }
+
+//NewInternalServerError returns 500
+func NewInternalServerError(message string) *RestErr {
+	return &RestErr{
+		Code:    http.StatusInternalServerError,
+		Message: message,
+		Error:   "internal_server_error",
+	}
+}
