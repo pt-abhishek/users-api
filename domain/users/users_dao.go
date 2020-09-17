@@ -1,30 +1,29 @@
 package users
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/pt-abhishek/users-api/databases/mysql"
 	"github.com/pt-abhishek/users-api/utils"
 )
 
 var (
-	usersDB          = make(map[int64]*User)
 	queryInsertUser  = "INSERT into users(first_name, last_name, email, date_created) VALUES (?,?,?,?);"
-	indexUniqueEmail = "email_UNIQUE"
+	queryGetUserByID = "SELECT id, first_name, last_name, email, date_created from users WHERE id = ?;"
+	queryUpdateUser  = "UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?;"
+	queryDeleteUser  = "DELETE FROM users WHERE id = ?;"
 )
 
 //Get finds by id
 func (user *User) Get() *utils.RestErr {
-	result := usersDB[user.ID]
-	if result == nil {
-		return utils.NewResourceNotFoundError(fmt.Sprintf("user not found with ID: %d", user.ID))
+	stmt, err := mysql.Client.Prepare(queryGetUserByID)
+	if err != nil {
+		return utils.NewInternalServerError(err.Error())
 	}
-	user.ID = result.ID
-	user.FirstName = result.FirstName
-	user.LastName = result.LastName
-	user.Email = result.Email
-	user.DateCreated = result.DateCreated
+	defer stmt.Close()
+
+	result := stmt.QueryRow(user.ID)
+	if err = result.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.DateCreated); err != nil {
+		return utils.ParseError(err)
+	}
 	return nil
 }
 
@@ -41,16 +40,45 @@ func (user *User) Save() (*User, *utils.RestErr) {
 
 	insertResult, err := stmt.Exec(user.FirstName, user.LastName, user.Email, user.DateCreated)
 	if err != nil {
-		if strings.Contains(err.Error(), indexUniqueEmail) {
-			return nil, utils.NewBadRequestError(fmt.Sprintf("Email id %s already exists", user.Email))
-		}
-		return nil, utils.NewInternalServerError(fmt.Sprintf("Error inserting into the database %s", err.Error()))
+		return nil, utils.ParseError(err)
 	}
 	userID, err := insertResult.LastInsertId()
 	if err != nil {
-		return nil, utils.NewInternalServerError("Error fetching the last insert id")
+		return nil, utils.ParseError(err)
 	}
 
 	user.ID = userID
 	return user, nil
+}
+
+//Update Updates a user with a dto instance
+func (user *User) Update() *utils.RestErr {
+	stmt, err := mysql.Client.Prepare(queryUpdateUser)
+	if err != nil {
+		return utils.NewInternalServerError(err.Error())
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user.FirstName, user.LastName, user.Email, user.ID)
+	if err != nil {
+		return utils.ParseError(err)
+	}
+
+	return nil
+}
+
+//Delete deletes user by id
+func (user *User) Delete() *utils.RestErr {
+	stmt, err := mysql.Client.Prepare(queryDeleteUser)
+	if err != nil {
+		return utils.NewInternalServerError(err.Error())
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user.ID)
+	if err != nil {
+		return utils.ParseError(err)
+	}
+	return nil
+
 }
