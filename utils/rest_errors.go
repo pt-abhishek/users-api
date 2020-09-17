@@ -17,3 +17,21 @@ func NewBadRequestError(message string) *RestErr {
 		Error:   "bad_request",
 	}
 }
+
+//NewResourceNotFoundError returns a 404
+func NewResourceNotFoundError(message string) *RestErr {
+	return &RestErr{
+		Code:    http.StatusNotFound,
+		Message: message,
+		Error:   "resource_not_found",
+	}
+}
+
+//NewInternalServerError returns 500
+func NewInternalServerError(message string) *RestErr {
+	return &RestErr{
+		Code:    http.StatusInternalServerError,
+		Message: message,
+		Error:   "internal_server_error",
+	}
+}
