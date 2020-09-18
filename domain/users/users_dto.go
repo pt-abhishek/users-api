@@ -15,9 +15,12 @@ type User struct {
 	DateCreated string `json:"date_created"`
 }
 
-//Validate validates the data in DAO
+//Validate validates the data in DTO
 func (user *User) Validate() *utils.RestErr {
-	if strings.TrimSpace(strings.ToLower(user.Email)) == "" {
+	user.FirstName = strings.TrimSpace(user.FirstName)
+	user.LastName = strings.TrimSpace(user.LastName)
+	user.Email = strings.TrimSpace(user.Email)
+	if strings.ToLower(user.Email) == "" {
 		return utils.NewBadRequestError("Invalid Email Address")
 	}
 	return nil
