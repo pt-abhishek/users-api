@@ -5,11 +5,29 @@ import (
 	"github.com/pt-abhishek/users-api/utils"
 )
 
+//UserService is the single instance of the UserService interface
+var (
+	UserService userServiceInterface = &userService{}
+)
+
+type userService struct{}
+
+type userServiceInterface interface {
+	CreateUser(users.User) (*users.User, *utils.RestErr)
+	GetUser(int64) (*users.User, *utils.RestErr)
+	UpdateUser(bool, users.User) (*users.User, *utils.RestErr)
+	Search(string) (users.Users, *utils.RestErr)
+	DeleteUser(int64) (*users.User, *utils.RestErr)
+}
+
 //CreateUser creates user from db
-func CreateUser(user users.User) (*users.User, *utils.RestErr) {
+func (u *userService) CreateUser(user users.User) (*users.User, *utils.RestErr) {
 	if err := user.Validate(); err != nil {
 		return nil, err
 	}
+	user.Status = users.ActiveStatus
+	user.Password = utils.GetMD5(user.Password)
+
 	var savedUser *users.User
 	savedUser, err := user.Save()
 	if err != nil {
@@ -19,7 +37,7 @@ func CreateUser(user users.User) (*users.User, *utils.RestErr) {
 }
 
 //GetUser finds user by id
-func GetUser(id int64) (*users.User, *utils.RestErr) {
+func (u *userService) GetUser(id int64) (*users.User, *utils.RestErr) {
 	user := users.User{
 		ID: id,
 	}
@@ -31,8 +49,8 @@ func GetUser(id int64) (*users.User, *utils.RestErr) {
 }
 
 //UpdateUser updates user
-func UpdateUser(isPartial bool, user users.User) (*users.User, *utils.RestErr) {
-	currentUser, err := GetUser(user.ID)
+func (u *userService) UpdateUser(isPartial bool, user users.User) (*users.User, *utils.RestErr) {
+	currentUser, err := UserService.GetUser(user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +65,15 @@ func UpdateUser(isPartial bool, user users.User) (*users.User, *utils.RestErr) {
 		if user.Email != "" {
 			currentUser.Email = user.Email
 		}
+		if user.Status != "" {
+			currentUser.Status = user.Status
+		}
+
 	} else {
 		currentUser.FirstName = user.FirstName
 		currentUser.LastName = user.LastName
 		currentUser.Email = user.Email
+		currentUser.Status = user.Status
 	}
 
 	if err = currentUser.Update(); err != nil {
@@ -60,8 +83,8 @@ func UpdateUser(isPartial bool, user users.User) (*users.User, *utils.RestErr) {
 }
 
 //DeleteUser deletes user with the given id
-func DeleteUser(id int64) (*users.User, *utils.RestErr) {
-	currentUser, err := GetUser(id)
+func (u *userService) DeleteUser(id int64) (*users.User, *utils.RestErr) {
+	currentUser, err := UserService.GetUser(id)
 	if err != nil {
 		return nil, err
 	}
@@ -69,4 +92,10 @@ func DeleteUser(id int64) (*users.User, *utils.RestErr) {
 		return nil, err
 	}
 	return currentUser, nil
+}
+
+//Search fetch by status
+func (u *userService) Search(status string) (users.Users, *utils.RestErr) {
+	dao := &users.User{}
+	return dao.FindByStatus(status)
 }
