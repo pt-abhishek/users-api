@@ -20,18 +20,13 @@ func CreateUser(c *gin.Context) {
 		c.JSON(restErr.Code, restErr)
 		return
 	}
-	result, saveErr := services.CreateUser(user)
+	result, saveErr := services.UserService.CreateUser(user)
 	if saveErr != nil {
 		fmt.Println("error while saving")
 		c.JSON(saveErr.Code, saveErr)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
-}
-
-//SearchUser elastic search i guess
-func SearchUser(c *gin.Context) {
-
+	c.JSON(http.StatusCreated, result.Marshall(c.GetHeader("X-Public") == "true"))
 }
 
 //FindUser finds a user by ID
@@ -41,12 +36,12 @@ func FindUser(c *gin.Context) {
 		c.JSON(err.Code, err)
 		return
 	}
-	result, getErr := services.GetUser(userID)
+	result, getErr := services.UserService.GetUser(userID)
 	if getErr != nil {
 		c.JSON(getErr.Code, getErr)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, result.Marshall(c.GetHeader("X-Public") == "true"))
 }
 
 //UpdateUser handles update api call
@@ -66,13 +61,13 @@ func UpdateUser(c *gin.Context) {
 	userToUpdate.ID = userID
 	isPartial := c.Request.Method == http.MethodPatch
 
-	result, updateErr := services.UpdateUser(isPartial, userToUpdate)
+	result, updateErr := services.UserService.UpdateUser(isPartial, userToUpdate)
 
 	if updateErr != nil {
 		c.JSON(updateErr.Code, updateErr)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, result.Marshall(c.GetHeader("X-Public") == "true"))
 }
 
 //DeleteUser Deletes a user with the given id
@@ -82,13 +77,13 @@ func DeleteUser(c *gin.Context) {
 		c.JSON(err.Code, err)
 		return
 	}
-	deletedUser, deleteErr := services.DeleteUser(userID)
+	deletedUser, deleteErr := services.UserService.DeleteUser(userID)
 
 	if deleteErr != nil {
 		c.JSON(deleteErr.Code, deleteErr)
 		return
 	}
-	c.JSON(http.StatusOK, deletedUser)
+	c.JSON(http.StatusOK, deletedUser.Marshall(c.GetHeader("X-Public") == "true"))
 }
 
 func getID(id string) (int64, *utils.RestErr) {
@@ -97,4 +92,14 @@ func getID(id string) (int64, *utils.RestErr) {
 		return -1, utils.NewBadRequestError("Invalid user id in params")
 	}
 	return userID, nil
+}
+
+//Search gets by searchText
+func Search(c *gin.Context) {
+	status := c.Query("status")
+	users, err := services.UserService.Search(status)
+	if err != nil {
+		c.JSON(err.Code, err)
+	}
+	c.JSON(http.StatusOK, users.Marshall(c.GetHeader("X-Public") == "true"))
 }
