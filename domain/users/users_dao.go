@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	queryInsertUser   = "INSERT into users(first_name, last_name, email, date_created, status, password) VALUES (?,?,?,?,?,?);"
-	queryGetUserByID  = "SELECT id, first_name, last_name, email, date_created, status from users WHERE id = ?;"
-	queryUpdateUser   = "UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?;"
-	queryDeleteUser   = "DELETE FROM users WHERE id = ?;"
-	queryFindByStatus = "SELECT id, first_name, last_name, email, date_created, status from users WHERE status = ?;"
+	queryInsertUser             = "INSERT into users(first_name, last_name, email, date_created, status, password) VALUES (?,?,?,?,?,?);"
+	queryGetUserByID            = "SELECT id, first_name, last_name, email, date_created, status from users WHERE id = ?;"
+	queryUpdateUser             = "UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?;"
+	queryDeleteUser             = "DELETE FROM users WHERE id = ?;"
+	queryFindByStatus           = "SELECT id, first_name, last_name, email, date_created, status from users WHERE status = ?;"
+	queryFindByEmailAndPassword = "SELECT id, first_name, last_name, email, date_created, status from users WHERE email = ? AND password = ?"
 )
 
 //Get finds by id
@@ -114,4 +115,20 @@ func (user *User) FindByStatus(status string) ([]User, *utils.RestErr) {
 	}
 	return results, nil
 
+}
+
+//FindByEmailAndPassword finds users with matching email and pass
+func (user *User) FindByEmailAndPassword() *utils.RestErr {
+	stmt, err := mysql.Client.Prepare(queryFindByEmailAndPassword)
+	if err != nil {
+		logger.Error("internal server error", err)
+		return utils.NewInternalServerError("Some error occured")
+	}
+	defer stmt.Close()
+
+	result := stmt.QueryRow(user.Email, user.Password)
+	if err = result.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.DateCreated, &user.Status); err != nil {
+		return utils.ParseError(err)
+	}
+	return nil
 }
