@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pt-abhishek/oAuth-library-go/oauth"
 	"github.com/pt-abhishek/users-api/domain/users"
 	"github.com/pt-abhishek/users-api/services"
 	"github.com/pt-abhishek/users-api/utils"
@@ -31,6 +32,12 @@ func CreateUser(c *gin.Context) {
 
 //FindUser finds a user by ID
 func FindUser(c *gin.Context) {
+
+	if err := oauth.AuthenticateRequest(c.Request); err != nil {
+		c.JSON(err.Code, err)
+		return
+	}
+
 	userID, err := getID(c.Param("user_id"))
 	if err != nil {
 		c.JSON(err.Code, err)
@@ -41,7 +48,11 @@ func FindUser(c *gin.Context) {
 		c.JSON(getErr.Code, getErr)
 		return
 	}
-	c.JSON(http.StatusOK, result.Marshall(c.GetHeader("X-Public") == "true"))
+	if oauth.GetCallerID(c.Request) != result.ID {
+		c.JSON(http.StatusOK, result.Marshall(true))
+		return
+	}
+	c.JSON(http.StatusOK, result.Marshall(oauth.IsPublic(c.Request)))
 }
 
 //UpdateUser handles update api call
@@ -102,4 +113,34 @@ func Search(c *gin.Context) {
 		c.JSON(err.Code, err)
 	}
 	c.JSON(http.StatusOK, users.Marshall(c.GetHeader("X-Public") == "true"))
+}
+
+//Login gets a user which matches the user id and password
+func Login(c *gin.Context) {
+	var request users.LoginRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		parseErr := utils.NewBadRequestError("Unable to parse JSON, invalid request")
+		c.JSON(parseErr.Code, parseErr)
+		return
+	}
+	user, err := services.UserService.LoginUser(request)
+	if err != nil {
+		c.JSON(err.Code, err)
+		return
+	}
+	//on login create a Oauth token
+	var tokenReq = oauth.TokenRequest{
+		GrantType:    "client_credentials",
+		Scope:        "USERS_API,BOOKS_API,OPENIDCONNECT",
+		UserID:       user.ID,
+		ClientID:     "2247be5f-56c6-4ec0-bebc-b99b720ede92",
+		ClientSecret: "9fc37600-4ec0-4695-9c1f-7f91f4c892fc",
+	}
+	accessToken, tokenErr := oauth.CreateToken(tokenReq)
+	if tokenErr != nil {
+		c.JSON(tokenErr.Code, tokenErr)
+		return
+	}
+	c.SetCookie("sessionToken", accessToken.JWT, int(accessToken.Expires), "/", "localhost:8079", false, true)
+	c.JSON(http.StatusOK, user.Marshall(c.GetHeader("X-Public") == "true"))
 }
